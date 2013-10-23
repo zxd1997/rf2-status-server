@@ -404,19 +404,21 @@
 
 1381827452 f:\rf_workspace\include\curl\typecheck-gcc.h
 
-1382520674 source:f:\rf2_server_status_query\example.cpp
+1382530883 source:f:\rf2_server_status_query\example.cpp
 	"Example.hpp"
 	<math.h>
-	<Windows.h>
 	<stdio.h>
+	<stdlib.h>
 	<direct.h>
 	<time.h>
+	<errno.h>
+	<Winsock2.h>
 	"cJSON.h"
 
-1381917071 f:\rf2_server_status_query\example.hpp
+1382526869 f:\rf2_server_status_query\example.hpp
 	"InternalsPlugin.hpp"
 
-1381917071 f:\rf2_server_status_query\internalsplugin.hpp
+1382529948 f:\rf2_server_status_query\internalsplugin.hpp
 	"PluginObjects.hpp"
 	<cmath>
 	<windows.h>

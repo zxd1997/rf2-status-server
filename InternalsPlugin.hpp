@@ -17,6 +17,8 @@
 #ifndef _INTERNALS_PLUGIN_HPP_
 #define _INTERNALS_PLUGIN_HPP_
 
+#define WIN32_LEAN_AND_MEAN
+
 #include "PluginObjects.hpp"     // base class for plugin objects to derive from
 #include <cmath>                // for sqrt()
 #include <windows.h>             // for HWND

@@ -44,31 +44,31 @@ class ExampleInternalsPlugin : public InternalsPluginV01
   void EndSession();             // session has ended
 
   // GAME OUTPUT
-  long WantsTelemetryUpdates() { return( false ); } // CHANGE TO 1 TO ENABLE TELEMETRY EXAMPLE!
-  void UpdateTelemetry( const TelemInfoV01 &info );
+  virtual long WantsTelemetryUpdates() { return( false ); } // CHANGE TO 1 TO ENABLE TELEMETRY EXAMPLE!
+  virtual void UpdateTelemetry( const TelemInfoV01 &info ){};
 
-  bool WantsGraphicsUpdates() { return( false ); } // CHANGE TO TRUE TO ENABLE GRAPHICS EXAMPLE!
-  void UpdateGraphics( const GraphicsInfoV01 &info );
+  virtual bool WantsGraphicsUpdates() { return( false ); } // CHANGE TO TRUE TO ENABLE GRAPHICS EXAMPLE!
+  virtual void UpdateGraphics( const GraphicsInfoV01 &info ){};
 
   // GAME INPUT
-  bool HasHardwareInputs() { return( false ); } // CHANGE TO TRUE TO ENABLE HARDWARE EXAMPLE!
-  void UpdateHardware( const float fDT ) { mET += fDT; } // update the hardware with the time between frames
-  void EnableHardware() { mEnabled = true; }             // message from game to enable hardware
-  void DisableHardware() { mEnabled = false; }           // message from game to disable hardware
+  virtual bool HasHardwareInputs() { return( false ); } // CHANGE TO TRUE TO ENABLE HARDWARE EXAMPLE!
+  virtual void UpdateHardware( const float fDT ) {  } // update the hardware with the time between frames
+  virtual void EnableHardware() {  }             // message from game to enable hardware
+  virtual void DisableHardware() {  }           // message from game to disable hardware
 
   // See if the plugin wants to take over a hardware control.  If the plugin takes over the
   // control, this method returns true and sets the value of the float pointed to by the
   // second arg.  Otherwise, it returns false and leaves the float unmodified.
-  bool CheckHWControl( const char * const controlName, float &fRetVal );
+  virtual bool CheckHWControl( const char * const controlName, float &fRetVal ){return false;};
 
-  bool ForceFeedback( float &forceValue );  // SEE FUNCTION BODY TO ENABLE FORCE EXAMPLE
+  virtual bool ForceFeedback( float &forceValue ){return false;};  // SEE FUNCTION BODY TO ENABLE FORCE EXAMPLE
 
   // SCORING OUTPUT
-  bool WantsScoringUpdates() { return( true ); } // CHANGE TO TRUE TO ENABLE SCORING EXAMPLE!
-  void UpdateScoring( const ScoringInfoV01 &info );
+  virtual bool WantsScoringUpdates() { return( true ); } // CHANGE TO TRUE TO ENABLE SCORING EXAMPLE!
+  virtual void UpdateScoring( const ScoringInfoV01 &info );
 
   // COMMENTARY INPUT
-  bool RequestCommentary( CommentaryRequestInfoV01 &info );  // SEE FUNCTION BODY TO ENABLE COMMENTARY EXAMPLE
+  virtual bool RequestCommentary( CommentaryRequestInfoV01 &info ){ return false;};  // SEE FUNCTION BODY TO ENABLE COMMENTARY EXAMPLE
 
   // VIDEO EXPORT (sorry, no example code at this time)
   virtual bool WantsVideoOutput() { return( false ); }         // whether we want to export video
@@ -78,11 +78,7 @@ class ExampleInternalsPlugin : public InternalsPluginV01
   virtual void VideoWriteAudio( const short *pAudio, unsigned int uNumFrames ) {} // write some audio info
   virtual void VideoWriteImage( const unsigned char *pImage ) {} // write video image
 
- private:
-
-  void WriteToAllExampleOutputFiles( const char * const openStr, const char * const msg );
-  float mET;  // needed for the hardware example
-  bool mEnabled; // needed for the hardware example
+  virtual void Error( const char * const msg );
 };
 
 

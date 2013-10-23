@@ -15,16 +15,19 @@
 //?  tag.2005.11.30: created                                               ?
 //?                                                                        ?
 //ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß?
-#pragma comment (lib, "Ws2_32.lib")
+
 
 #include "Example.hpp"          // corresponding header file
 #include <math.h>
-#include <Windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <direct.h>
 #include <time.h>
 #include <errno.h>
+#include <Winsock2.h>
 #include "cJSON.h"
+
+#pragma comment (lib, "Ws2_32.lib")
 
 // plugin information
 
@@ -160,12 +163,17 @@ DWORD WINAPI __stdcall service(LPVOID lpParameter)
     Session *s=(Session *)lpParameter;
     int socket = s->socket;
 
+    //struct linger ling = {1, 30};
+    //setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&ling, sizeof(ling));
+
     memset(buffer,0,BUFFER_SIZE);
     sprintf(buffer, "HTTP/1.1 200 OK\nServer: rFactor2ServerStatQuery\nContent-Type: text/html\nContent-Length: %d\n\n%s",strlen(out),out);
 
     if (send(socket, buffer, strlen(buffer), 0 ) <= 0) {
         debugLog("Send Failed");
     }
+    shutdown(socket,SD_SEND);
+    recv(socket,buffer,BUFFER_SIZE,0);
     closesocket(socket);
     delete s;
     free(out);
@@ -213,10 +221,6 @@ DWORD WINAPI __stdcall startHttpServer(LPVOID lpParameter)
 
         Session *s=new Session();
         s->socket = accept(server_socket,(struct sockaddr*)&client_addr,&length);
-        linger m_sLinger;
-        m_sLinger.l_onoff = 1; // (ÔÚclosesocket()µ÷ÓÃ,µ«ÊÇ»¹ÓÐÊý¾ÝÃ»·¢ËÍÍê±ÏµÄÊ±ºòÈÝÐí¶ºÁô)
-        m_sLinger.l_linger = 30; // (ÈÝÐí¶ºÁôµÄÊ±¼äÎª0Ãë)
-        setsockopt(s->socket,SOL_SOCKET,SO_LINGER,(const char*)&m_sLinger,sizeof(linger));
         if ( s->socket < 0)
         {
             debugLog("Server Accept Failed!/n");
@@ -240,9 +244,6 @@ void ExampleInternalsPlugin::UpdateScoring( const ScoringInfoV01 &info )
     memcpy(currentScoringInfo,(void *)&info,sizeof(info));
 }
 
-// ExampleInternalsPlugin class
-
-
 void ExampleInternalsPlugin::Startup( long version )
 {
     char logDir[512]={'\0'};
@@ -259,9 +260,13 @@ void ExampleInternalsPlugin::Startup( long version )
 
     CreateThread(NULL,NULL, startHttpServer,NULL,0,NULL);
 
-    debugLog("plugin startup");
+    debugLog("======Startup");
 }
 
+void ExampleInternalsPlugin::Error(const char* const message)
+{
+    debugLog("Error:%s",message);
+}
 
 void ExampleInternalsPlugin::Shutdown()
 {
@@ -277,7 +282,8 @@ void ExampleInternalsPlugin::StartSession()
 
 void ExampleInternalsPlugin::EndSession()
 {
-
+    delete currentScoringInfo;
+    currentScoringInfo = NULL;
 }
 
 
@@ -292,43 +298,4 @@ void ExampleInternalsPlugin::ExitRealtime()
 
 }
 
-
-void ExampleInternalsPlugin::UpdateTelemetry( const TelemInfoV01 &info )
-{
-
-}
-
-
-void ExampleInternalsPlugin::UpdateGraphics( const GraphicsInfoV01 &info )
-{
-
-}
-
-
-bool ExampleInternalsPlugin::CheckHWControl( const char * const controlName, float &fRetVal )
-{
-  return( false );
-}
-
-
-bool ExampleInternalsPlugin::ForceFeedback( float &forceValue )
-{
-  // Note that incoming value is the game's computation, in case you're interested.
-
-  // CHANGE COMMENTS TO ENABLE FORCE EXAMPLE
-  return( false );
-
-  // I think the bounds are -11500 to 11500 ...
-//  forceValue = 11500.0f * sinf( mET );
-//  return( true );
-}
-
-
-
-
-bool ExampleInternalsPlugin::RequestCommentary( CommentaryRequestInfoV01 &info )
-{
-  // COMMENT OUT TO ENABLE EXAMPLE
-  return( false );
-}
 
