@@ -32,7 +32,7 @@
 // plugin information
 
 extern "C" __declspec( dllexport )
-const char * __cdecl GetPluginName()                   { return( "ExamplePlugin - 2008.02.13" ); }
+const char * __cdecl GetPluginName()                   { return( "ServerStatusQuery v0.1" ); }
 
 extern "C" __declspec( dllexport )
 PluginObjectType __cdecl GetPluginType()               { return( PO_INTERNALS ); }
@@ -54,7 +54,6 @@ unsigned int BUFFER_SIZE = 51200;
 char* buffer = new char[BUFFER_SIZE];
 ScoringInfoV01 *currentScoringInfo = NULL;
 int httpPort = 0;
-
 
 
 #define accessLog(fmt,...) log(accessLogFilePath,fmt,__VA_ARGS__)
@@ -166,6 +165,8 @@ DWORD WINAPI __stdcall service(LPVOID lpParameter)
     //struct linger ling = {1, 30};
     //setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&ling, sizeof(ling));
 
+
+	recv(socket,buffer,BUFFER_SIZE,0);
     memset(buffer,0,BUFFER_SIZE);
     sprintf(buffer, "HTTP/1.1 200 OK\nServer: rFactor2ServerStatQuery\nContent-Type: text/html\nContent-Length: %d\n\n%s",strlen(out),out);
 
@@ -247,8 +248,8 @@ void ExampleInternalsPlugin::UpdateScoring( const ScoringInfoV01 &info )
 void ExampleInternalsPlugin::Startup( long version )
 {
     char logDir[512]={'\0'};
-    httpPort=GetPrivateProfileInt("config", "http_port",8199,".\\rf2_server_status_query_config.ini");
-    GetPrivateProfileString("config", "log_dir","rf2_server_status_query_log",logDir,512,".\\rf2_server_status_query_config.ini");
+    httpPort=GetPrivateProfileInt("config", "http_port",34297,"rf2_server_status_query_config.ini");
+    GetPrivateProfileString("config", "log_dir","rf2_server_status_query_log",logDir,512,"rf2_server_status_query_config.ini");
 
     mkdir(logDir);
 
@@ -258,9 +259,11 @@ void ExampleInternalsPlugin::Startup( long version )
     sprintf(accessLogFilePath, "%s/%s.log",logDir,tmp);
     sprintf(debugLogFilePath, "%s/debug.log",logDir);
 
+
+    debugLog("Plugin Running.....Port:%d",httpPort);
+
     CreateThread(NULL,NULL, startHttpServer,NULL,0,NULL);
 
-    debugLog("======Startup");
 }
 
 void ExampleInternalsPlugin::Error(const char* const message)

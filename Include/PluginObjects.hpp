@@ -1,18 +1,18 @@
-//ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
-//İ                                                                         Ş
-//İ Module: Header file for plugin object types                             Ş
-//İ                                                                         Ş
-//İ Description: interface declarations for plugin objects                  Ş
-//İ                                                                         Ş
-//İ This source code module, and all information, data, and algorithms      Ş
-//İ associated with it, are part of isiMotor Technology (tm).               Ş
-//İ                 PROPRIETARY AND CONFIDENTIAL                            Ş
-//İ Copyright (c) 1996-2013 Image Space Incorporated.  All rights reserved. Ş
-//İ                                                                         Ş
-//İ Change history:                                                         Ş
-//İ   tag.2008.02.15: created                                               Ş
-//İ                                                                         Ş
-//ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+//ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ?
+//?                                                                        ?
+//?Module: Header file for plugin object types                             ?
+//?                                                                        ?
+//?Description: interface declarations for plugin objects                  ?
+//?                                                                        ?
+//?This source code module, and all information, data, and algorithms      ?
+//?associated with it, are part of isiMotor Technology (tm).               ?
+//?                PROPRIETARY AND CONFIDENTIAL                            ?
+//?Copyright (c) 1996-2013 Image Space Incorporated.  All rights reserved. ?
+//?                                                                        ?
+//?Change history:                                                         ?
+//?  tag.2008.02.15: created                                               ?
+//?                                                                        ?
+//ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß?
 
 #ifndef _PLUGIN_OBJECTS_HPP_
 #define _PLUGIN_OBJECTS_HPP_
@@ -24,7 +24,7 @@
 
 
 //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-//³ types of plugins                                                       ³
+//?types of plugins                                                       ?
 //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
 enum PluginObjectType
@@ -42,8 +42,8 @@ enum PluginObjectType
 
 
 //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-//³  PluginObject                                                          ³
-//³    - interface used by plugin classes.                                 ³
+//? PluginObject                                                          ?
+//?   - interface used by plugin classes.                                 ?
 //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
 class PluginObject
@@ -61,8 +61,8 @@ class PluginObject
 
 
 //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-//³ typedefs for dll functions - easier to use a typedef than to type      ³
-//³ out the crazy syntax for declaring and casting function pointers       ³
+//?typedefs for dll functions - easier to use a typedef than to type      ?
+//?out the crazy syntax for declaring and casting function pointers       ?
 //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
 
 typedef const char *      ( __cdecl *GETPLUGINNAME )();

@@ -1,20 +1,20 @@
-//‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹
-//›                                                                         ﬁ
-//› Module: Internals Example Header File                                   ﬁ
-//›                                                                         ﬁ
-//› Description: Declarations for the Internals Example Plugin              ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› This source code module, and all information, data, and algorithms      ﬁ
-//› associated with it, are part of CUBE technology (tm).                   ﬁ
-//›                 PROPRIETARY AND CONFIDENTIAL                            ﬁ
-//› Copyright (c) 1996-2008 Image Space Incorporated.  All rights reserved. ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› Change history:                                                         ﬁ
-//›   tag.2005.11.30: created                                               ﬁ
-//›                                                                         ﬁ
-//ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
+//‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹?
+//?                                                                        ?
+//?Module: Internals Example Header File                                   ?
+//?                                                                        ?
+//?Description: Declarations for the Internals Example Plugin              ?
+//?                                                                        ?
+//?                                                                        ?
+//?This source code module, and all information, data, and algorithms      ?
+//?associated with it, are part of CUBE technology (tm).                   ?
+//?                PROPRIETARY AND CONFIDENTIAL                            ?
+//?Copyright (c) 1996-2008 Image Space Incorporated.  All rights reserved. ?
+//?                                                                        ?
+//?                                                                        ?
+//?Change history:                                                         ?
+//?  tag.2005.11.30: created                                               ?
+//?                                                                        ?
+//ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ?
 
 #ifndef _INTERNALS_EXAMPLE_H
 #define _INTERNALS_EXAMPLE_H

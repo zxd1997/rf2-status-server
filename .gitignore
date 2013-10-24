@@ -1,2 +1,5 @@
 /obj
 /bin
+/Win32/InternalsPlugin.sdf
+/Win32/Debug
+/Win32/Release
