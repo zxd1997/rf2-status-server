@@ -166,7 +166,7 @@ DWORD WINAPI __stdcall service(LPVOID lpParameter)
     //setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&ling, sizeof(ling));
 
 
-	recv(socket,buffer,BUFFER_SIZE,0);
+	//recv(socket,buffer,BUFFER_SIZE,0);
     memset(buffer,0,BUFFER_SIZE);
     sprintf(buffer, "HTTP/1.1 200 OK\nServer: rFactor2ServerStatQuery\nContent-Type: text/html\nContent-Length: %d\n\n%s",strlen(out),out);
 
