@@ -248,8 +248,8 @@ void ExampleInternalsPlugin::UpdateScoring( const ScoringInfoV01 &info )
 void ExampleInternalsPlugin::Startup( long version )
 {
     char logDir[512]={'\0'};
-    httpPort=GetPrivateProfileInt("config", "http_port",34297,"rf2_server_status_query_config.ini");
-    GetPrivateProfileString("config", "log_dir","rf2_server_status_query_log",logDir,512,"rf2_server_status_query_config.ini");
+    httpPort=GetPrivateProfileInt("config", "http_port",34297,".\\rf2_dedi_state_http_query.ini");
+    GetPrivateProfileString("config", "log_dir","rf2_server_status_query_log",logDir,512,".\\rf2_dedi_state_http_query.ini");
 
     mkdir(logDir);
 
