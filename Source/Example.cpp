@@ -24,10 +24,10 @@
 #include <direct.h>
 #include <time.h>
 #include <errno.h>
-#include <Winsock2.h>
 #include "cJSON.h"
+#include "mongoose.h"
 
-#pragma comment (lib, "Ws2_32.lib")
+//#pragma comment (lib, "wsock32.lib")
 
 // plugin information
 
@@ -38,7 +38,7 @@ extern "C" __declspec( dllexport )
 PluginObjectType __cdecl GetPluginType()               { return( PO_INTERNALS ); }
 
 extern "C" __declspec( dllexport )
-int __cdecl GetPluginVersion()                         { return( 1 ); } // InternalsPluginV01 functionality
+int __cdecl GetPluginVersion()                         { return( 3 ); } // InternalsPluginV01 functionality
 
 extern "C" __declspec( dllexport )
 PluginObject * __cdecl CreatePluginObject()            { return( (PluginObject *) new ExampleInternalsPlugin ); }
@@ -51,13 +51,15 @@ void __cdecl DestroyPluginObject( PluginObject *obj )  { delete( (ExampleInterna
 char* debugLogFilePath=new char[512];
 char* accessLogFilePath=new char[512];
 unsigned int BUFFER_SIZE = 51200;
-char* buffer = new char[BUFFER_SIZE];
 ScoringInfoV01 *currentScoringInfo = NULL;
-int httpPort = 0;
+GraphicsInfoV02 *currentGraphicsInfo = NULL;
+
+bool isDebug = false;
 
 
 #define accessLog(fmt,...) log(accessLogFilePath,fmt,__VA_ARGS__)
-#define debugLog(fmt,...) log(debugLogFilePath,fmt,__VA_ARGS__)
+#define debugLogToFile(fmt,...) log(debugLogFilePath,fmt,__VA_ARGS__)
+#define debugLog(fmt,...) if(isDebug){printf(fmt,__VA_ARGS__);printf("\n");}
 
 void log(const char* filePath,const char* fmt,...)
 {
@@ -89,7 +91,7 @@ public:
 
 
 
-DWORD WINAPI __stdcall service(LPVOID lpParameter)
+void getScoringInfo(struct mg_connection *c, struct http_message *hm)
 {
     cJSON *root = cJSON_CreateObject();
 
@@ -158,84 +160,86 @@ DWORD WINAPI __stdcall service(LPVOID lpParameter)
     }
 
     char *out =cJSON_Print(root);
-
-    Session *s=(Session *)lpParameter;
-    int socket = s->socket;
-
-    //struct linger ling = {1, 30};
-    //setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&ling, sizeof(ling));
-
-
-	//recv(socket,buffer,BUFFER_SIZE,0);
-    memset(buffer,0,BUFFER_SIZE);
-    sprintf(buffer, "HTTP/1.1 200 OK\nServer: rFactor2ServerStatQuery\nContent-Type: text/html\nContent-Length: %d\n\n%s",strlen(out),out);
-
-    if (send(socket, buffer, strlen(buffer), 0 ) <= 0) {
-        debugLog("Send Failed");
-    }
-    shutdown(socket,SD_SEND);
-    recv(socket,buffer,BUFFER_SIZE,0);
-    closesocket(socket);
-    delete s;
-    free(out);
-    return 0;
+	mg_printf(c,
+		"HTTP/1.1 200 OK\r\n"
+		"Server: rFactor2ServerStatQuery\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: %d\r\n"
+		"\r\n"
+		"%s",
+		(int)strlen(out), out);
+    
 }
 
+void getGraphicsInfo(struct mg_connection *c, struct http_message *hm)
+{
+	cJSON *root = cJSON_CreateObject();
+
+	if (currentGraphicsInfo != NULL)
+	{
+		cJSON_AddItemToObject(root, "mID", cJSON_CreateNumber(currentGraphicsInfo->mID));
+		cJSON_AddItemToObject(root, "mCameraType", cJSON_CreateNumber(currentGraphicsInfo->mCameraType));
+	}
+	else {
+		cJSON_AddItemToObject(root, "session", cJSON_CreateNumber(-1));
+	}
+
+	char *out = cJSON_Print(root);
+	mg_printf(c,
+		"HTTP/1.1 200 OK\r\n"
+		"Server: rFactor2ServerStatQuery\r\n"
+		"Content-Type: text/json\r\n"
+		"Content-Length: %d\r\n"
+		"\r\n"
+		"%s",
+		(int)strlen(out), out);
+}
+
+static void ev_handler(struct mg_connection *nc, int ev, void *p) {
+	debugLog("http server start: %d", ev)
+	if (ev == MG_EV_HTTP_REQUEST) {
+		struct http_message *hm = (struct http_message *) p;
+		if (mg_vcmp(&hm->uri, "/getScoringInfo") == 0) {
+			getScoringInfo(nc, hm); /* Handle RESTful call */
+		} else if (mg_vcmp(&hm->uri, "/getGraphicsInfo") == 0) {
+			getGraphicsInfo(nc, hm); /* Handle RESTful call */
+		} else {
+			mg_printf(nc,
+				"HTTP/1.1 200 OK\r\n"
+				"Server: rFactor2ServerStatQuery\r\n"
+				"Content-Type: text/json\r\n"
+				"Content-Length: %d\r\n"
+				"\r\n"
+				"%s",
+				(int)strlen("hello"), "hello");
+		}
+	}
+}
+
+char address[100] = { '\0' };
 DWORD WINAPI __stdcall startHttpServer(LPVOID lpParameter)
 {
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != NO_ERROR) {
-        debugLog("Error at WSAStartup()");
-        return 1;
-    }
+	debugLog("http server start")
+	struct mg_mgr mgr;
+	struct mg_connection *nc;
 
-    struct sockaddr_in server_addr;
-    memset(&server_addr,0,sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htons(INADDR_ANY);
-    server_addr.sin_port = htons(httpPort);
+	mg_mgr_init(&mgr, NULL);
+	nc = mg_bind(&mgr, address, ev_handler);
+	if (nc == NULL) {
+		printf("Failed to create listener\n");
+		return 1;
+	}
 
-    int server_socket = socket(PF_INET,SOCK_STREAM,0);
-    if( server_socket < 0)
-    {
-        debugLog("Create Socket Failed!");
-        return 0;
-    }
+	// Set up HTTP server parameters
+	mg_set_protocol_http_websocket(nc);
+	//mg_enable_multithreading(nc);
 
-    if( bind(server_socket,(struct sockaddr*)&server_addr,sizeof(server_addr)))
-    {
-        debugLog("Server Bind Port Failed!");
-        return 0;
-    }
-
-    //server_socket用于监听
-    if ( listen(server_socket, 20) )
-    {
-        debugLog("Server Listen Failed!");
-        return 0;
-    }
-
-    while(1) //服务器端要一直运行
-    {
-        struct sockaddr_in client_addr;
-        int length = sizeof(client_addr);
-
-        Session *s=new Session();
-        s->socket = accept(server_socket,(struct sockaddr*)&client_addr,&length);
-        if ( s->socket < 0)
-        {
-            debugLog("Server Accept Failed!/n");
-            break;
-        }else{
-            accessLog("%s",inet_ntoa(client_addr.sin_addr));
-            CreateThread(NULL,NULL, service,(void *)s,0,NULL);
-        }
-
-    }
-    //关闭监听用的socket
-    closesocket(server_socket);
-
-    return 0;
+	for (;;) {
+		mg_mgr_poll(&mgr, 100000);
+	}
+	mg_mgr_free(&mgr);
+	debugLog("http server exit")
+	return 0;
 }
 
 void ExampleInternalsPlugin::UpdateScoring( const ScoringInfoV01 &info )
@@ -247,8 +251,16 @@ void ExampleInternalsPlugin::UpdateScoring( const ScoringInfoV01 &info )
 
 void ExampleInternalsPlugin::Startup( long version )
 {
+	isDebug = GetPrivateProfileInt("config", "is_debug", 1, ".\\rf2_dedi_state_http_query.ini");
+	if (isDebug) {
+		AllocConsole();
+		freopen("CONOUT$", "w+t", stdout);
+	}
+	
+	
+	GetPrivateProfileString("config", "http_port", ":34297", address, 100, ".\\rf2_dedi_state_http_query.ini");
+	
     char logDir[512]={'\0'};
-    httpPort=GetPrivateProfileInt("config", "http_port",34297,".\\rf2_dedi_state_http_query.ini");
     GetPrivateProfileString("config", "log_dir","rf2_server_status_query_log",logDir,512,".\\rf2_dedi_state_http_query.ini");
 
     mkdir(logDir);
@@ -260,20 +272,28 @@ void ExampleInternalsPlugin::Startup( long version )
     sprintf(debugLogFilePath, "%s/debug.log",logDir);
 
 
-    debugLog("Plugin Running.....Port:%d",httpPort);
-
+    debugLog("Plugin Running.....Port:%d", address);
     CreateThread(NULL,NULL, startHttpServer,NULL,0,NULL);
 
 }
 
-void ExampleInternalsPlugin::Error(const char* const message)
+void ExampleInternalsPlugin::UpdateGraphics(const GraphicsInfoV02 &info)
 {
-    debugLog("Error:%s",message);
+	if (currentGraphicsInfo == NULL)
+		currentGraphicsInfo = new GraphicsInfoV02();
+	memcpy(currentGraphicsInfo, (void *)&info, sizeof(info));
+}
+
+unsigned char ExampleInternalsPlugin::WantsToViewVehicle(CameraControlInfoV01 &camControl)
+{
+	return (3);
 }
 
 void ExampleInternalsPlugin::Shutdown()
 {
-
+	if (isDebug) {
+		fclose(stdout);
+	}
 }
 
 

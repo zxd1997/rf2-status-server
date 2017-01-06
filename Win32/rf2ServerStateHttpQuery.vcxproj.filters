@@ -21,6 +21,9 @@
     <ClCompile Include="..\Source\cJSON.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\mongoose.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\Example.hpp">
@@ -33,6 +36,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Include\cJSON.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\mongoose.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

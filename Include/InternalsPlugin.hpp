@@ -7,7 +7,7 @@
 //?This source code module, and all information, data, and algorithms      ?
 //?associated with it, are part of isiMotor Technology (tm).               ?
 //?                PROPRIETARY AND CONFIDENTIAL                            ?
-//?Copyright (c) 1996-2013 Image Space Incorporated.  All rights reserved. ?
+//?Copyright (c) 1996-2015 Image Space Incorporated.  All rights reserved. ?
 //?                                                                        ?
 //?Change history:                                                         ?
 //?  tag.2005.11.29: created                                               ?
@@ -20,12 +20,12 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include "PluginObjects.hpp"     // base class for plugin objects to derive from
-#include <cmath>                // for sqrt()
+#include <cmath>                 // for sqrt()
 #include <windows.h>             // for HWND
 
 
-// rF currently uses 4-byte packing ... whatever the current packing is will
-// be restored at the end of this include with another #pragma.
+// rF and plugins must agree on structure packing, so set it explicitly here ... whatever the current
+// packing is will be restored at the end of this include with another #pragma.
 #pragma pack( push, 4 )
 
 
@@ -139,10 +139,10 @@ struct TelemWheelV01
 
   double mGripFract;             // an approximation of what fraction of the contact patch is sliding
   double mPressure;              // kPa (tire pressure)
-  double mTemperature[3];        // Kelvin (subtract 273.16 to get Celsius), left/center/right (not to be confused with inside/center/outside!)
+  double mTemperature[3];        // Kelvin (subtract 273.15 to get Celsius), left/center/right (not to be confused with inside/center/outside!)
   double mWear;                  // wear (0.0-1.0, fraction of maximum) ... this is not necessarily proportional with grip loss
   char mTerrainName[16];         // the material prefixes from the TDF file
-  unsigned char mSurfaceType;    // 0=dry, 1=wet, 2=grass, 3=dirt, 4=gravel, 5=rumblestrip
+  unsigned char mSurfaceType;    // 0=dry, 1=wet, 2=grass, 3=dirt, 4=gravel, 5=rumblestrip, 6=special
   bool mFlat;                    // whether tire is flat
   bool mDetached;                // whether wheel is detached
 
@@ -150,7 +150,10 @@ struct TelemWheelV01
   double mWheelYLocation;        // wheel's y location relative to vehicle y location
   double mToe;                   // current toe angle w.r.t. the vehicle
 
-  unsigned char mExpansion[56];  // for future use
+  double mTireCarcassTemperature;       // rough average of temperature samples from carcass (Kelvin)
+  double mTireInnerLayerTemperature[3]; // rough average of temperature samples from innermost layer of rubber (before carcass) (Kelvin)
+
+  unsigned char mExpansion[ 24 ];// for future use
 };
 
 
@@ -211,7 +214,7 @@ struct TelemInfoV01
   double mFilteredClutch;        // ranges  0.0-1.0
 
   // Misc
-  double mSteeringArmForce;      // force on steering arms
+  double mSteeringShaftTorque;   // torque around steering shaft (used to be mSteeringArmForce, but that is not necessarily accurate for feedback purposes)
   double mFront3rdDeflection;    // deflection at front 3rd spring
   double mRear3rdDeflection;     // deflection at rear 3rd spring
 
@@ -236,7 +239,7 @@ struct TelemInfoV01
   TelemVect3 mLastImpactPos;     // location of last impact
 
   // Expanded
-  double mEngineTq;              // current engine torque (including additive torque)
+  double mEngineTorque;          // current engine torque (including additive torque) (used to be mEngineTq, but there's little reason to abbreviate it)
   long mCurrentSector;           // the current sector (zero-based) with the pitlane stored in the sign bit (example: entering pits from third sector gives 0x80000002)
   unsigned char mSpeedLimiter;   // whether speed limiter is on
   unsigned char mMaxGears;       // maximum forward gears
@@ -248,8 +251,21 @@ struct TelemInfoV01
   unsigned char mRearFlapLegalStatus;      // 0=disallowed, 1=criteria detected but not allowed quite yet, 2=allowed
   unsigned char mIgnitionStarter;          // 0=off 1=ignition 2=ignition+starter
 
+  char mFrontTireCompoundName[18];         // name of front tire compound
+  char mRearTireCompoundName[18];          // name of rear tire compound
+
+  unsigned char mSpeedLimiterAvailable;    // whether speed limiter is available
+  unsigned char mAntiStallActivated;       // whether (hard) anti-stall is activated
+  unsigned char mUnused[2];                //
+  float mVisualSteeringWheelRange;         // the *visual* steering wheel range
+
+  double mRearBrakeBias;                   // fraction of brakes on rear
+  double mTurboBoostPressure;              // current turbo boost pressure if available
+  float mPhysicsToGraphicsOffset[3];       // offset from static CG to graphical center
+  float mPhysicalSteeringWheelRange;       // the *physical* steering wheel range
+
   // Future use
-  unsigned char mExpansion[228]; // for future use (note that the slot ID has been moved to mID above)
+  unsigned char mExpansion[152]; // for future use (note that the slot ID has been moved to mID above)
 
   // keeping this at the end of the structure to make it easier to replace in future versions
   TelemWheelV01 mWheel[4];       // wheel info (front left, front right, rear left, rear right)
@@ -291,10 +307,20 @@ struct GraphicsInfoV02 : public GraphicsInfoV01
 
 struct CameraControlInfoV01
 {
+  // Cameras
   long mID;                      // slot ID to view
   long mCameraType;              // see GraphicsInfoV02 comments for values
 
-  unsigned char mExpansion[128]; // for future use (possibly camera name & positions/orientations)
+  // Replays (note that these are asynchronous)
+  bool mReplayActive;            // This variable is an *input* filled with whether the replay is currently active (as opposed to realtime).
+  bool mReplayUnused;            //
+  unsigned char mReplayCommand;  // 0=do nothing, 1=begin, 2=end, 3=rewind, 4=fast backwards, 5=backwards, 6=slow backwards, 7=stop, 8=slow play, 9=play, 10=fast play, 11=fast forward
+
+  bool mReplaySetTime;           // Whether to skip to the following replay time:
+  float mReplaySeconds;          // The replay time in seconds to skip to (note: the current replay maximum ET is passed into this variable in case you need it)
+
+  //
+  unsigned char mExpansion[120]; // for future use (possibly camera name & positions/orientations)
 };
 
 
@@ -371,13 +397,15 @@ struct VehicleScoringInfoV01
 
   char mPitGroup[24];            // pit group (same as team name unless pit is shared)
   unsigned char mFlag;           // primary flag being shown to vehicle (currently only 0=green or 6=blue)
-  unsigned char mUnused1;
-  unsigned char mUnused2;
-  unsigned char mUnused3;
+  bool mUnderYellow;             // whether this car has taken a full-course caution flag at the start/finish line
+  unsigned char mCountLapFlag;   // 0 = do not count lap or time, 1 = count lap but not time, 2 = count lap and time
+  bool mInGarageStall;           // appears to be within the correct garage stall
+
+  unsigned char mUpgradePack[16];  // Coded upgrades
 
   // Future use
   // tag.2012.04.06 - SEE ABOVE!
-  unsigned char mExpansion[76];  // for future use
+  unsigned char mExpansion[60];  // for future use
 };
 
 
@@ -403,7 +431,7 @@ struct ScoringInfoV01
   // 6 Full course yellow / safety car
   // 7 Session stopped
   // 8 Session over
-  unsigned char mGamePhase;
+  unsigned char mGamePhase;   
 
   // Yellow flag states (applies to full-course only)
   // -1 Invalid
@@ -430,8 +458,8 @@ struct ScoringInfoV01
   double mAmbientTemp;             // temperature (Celsius)
   double mTrackTemp;               // temperature (Celsius)
   TelemVect3 mWind;                // wind speed
-  double mOnPathWetness;           // on main path 0.0-1.0
-  double mOffPathWetness;          // on main path 0.0-1.0
+  double mMinPathWetness;          // minimum wetness on main path 0.0-1.0
+  double mMaxPathWetness;          // maximum wetness on main path 0.0-1.0
 
   // Future use
   unsigned char mExpansion[256];
@@ -482,6 +510,12 @@ struct PhysicsOptionsV01
   unsigned char mHoldClutch;       // for auto-shifters at start of race: 0 (off), 1 (on)
   unsigned char mAutoReverse;      // 0 (off), 1 (on)
   unsigned char mAlternateNeutral; // Whether shifting up and down simultaneously equals neutral
+
+  // tag.2014.06.09 - yes these are new, but no they don't change the size of the structure nor the address of the other variables in it (because we're just using the existing padding)
+  unsigned char mAIControl;        // Whether player vehicle is currently under AI control
+  unsigned char mUnused1;          //
+  unsigned char mUnused2;          //
+
   float mManualShiftOverrideTime;  // time before auto-shifting can resume after recent manual shift
   float mAutoShiftOverrideTime;    // time before manual shifting can resume after recent auto shift
   float mSpeedSensitiveSteering;   // 0.0 (off) - 1.0
@@ -494,7 +528,7 @@ struct EnvironmentInfoV01
   // TEMPORARY buffers (you should copy them if needed for later use) containing various paths that may be needed.  Each of these
   // could be relative ("UserData\") or full ("C:\BlahBlah\rFactorProduct\UserData\").
   // mPath[ 0 ] points to the UserData directory.
-  // mPath[ 1 ] points to the CustomPluginOptions.ini filename.
+  // mPath[ 1 ] points to the CustomPluginOptions.JSON filename.
   // mPath[ 2 ] points to the latest results file
   // (in the future, we may add paths for the current garage setup, fully upgraded physics files, etc., any other requests?)
   const char *mPath[ 16 ];
@@ -536,6 +570,231 @@ struct CustomControlInfoV01
 };
 
 
+struct WeatherControlInfoV01
+{
+  // The current conditions are passed in with the API call. The following ET (Elapsed Time) value should typically be far
+  // enough in the future that it can be interpolated smoothly, and allow clouds time to roll in before rain starts. In
+  // other words you probably shouldn't have mCloudiness and mRaining suddenly change from 0.0 to 1.0 and expect that
+  // to happen in a few seconds without looking crazy.
+  double mET;                           // when you want this weather to take effect
+
+  // mRaining[1][1] is at the origin (2013.12.19 - and currently the only implemented node), while the others
+  // are spaced at <trackNodeSize> meters where <trackNodeSize> is the maximum absolute value of a track vertex
+  // coordinate (and is passed into the API call).
+  double mRaining[ 3 ][ 3 ];            // rain (0.0-1.0) at different nodes
+
+  double mCloudiness;                   // general cloudiness (0.0=clear to 1.0=dark), will be automatically overridden to help ensure clouds exist over rainy areas
+  double mAmbientTempK;                 // ambient temperature (Kelvin)
+  double mWindMaxSpeed;                 // maximum speed of wind (ground speed, but it affects how fast the clouds move, too)
+
+  bool mApplyCloudinessInstantly;       // preferably we roll the new clouds in, but you can instantly change them now
+  bool mUnused1;                        //
+  bool mUnused2;                        //
+  bool mUnused3;                        //
+
+  unsigned char mExpansion[ 508 ];      // future use (humidity, pressure, air density, etc.)
+};
+
+
+//旼컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴커
+//?Version07 Structures                                                   ?
+//읕컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴켸
+
+struct CustomVariableV01
+{
+  char mCaption[ 128 ];                 // Name of variable. This will be used for storage. In the future, this may also be used in the UI (after attempting to translate).
+  long mNumSettings;                    // Number of available settings. The special value 0 should be used for types that have limitless possibilities, which will be treated as a string type.
+  long mCurrentSetting;                 // Current setting (also the default setting when returned in GetCustomVariable()). This is zero-based, so: ( 0 <= mCurrentSetting < mNumSettings )
+
+  // future expansion
+  unsigned char mExpansion[ 256 ];
+};
+
+struct CustomSettingV01
+{
+  char mName[ 128 ];                    // Enumerated name of setting (only used if CustomVariableV01::mNumSettings > 0). This will be stored in the JSON file for informational purposes only. It may also possibly be used in the UI in the future.
+};
+
+struct MultiSessionParticipantV01
+{
+  // input only
+  long mID;                             // slot ID (if loaded) or -1 (if currently disconnected)
+  char mDriverName[ 32 ];               // driver name
+  char mVehicleName[ 64 ];              // vehicle name
+  unsigned char mUpgradePack[ 16 ];     // coded upgrades
+
+  float mBestPracticeTime;              // best practice time
+  long mQualParticipantIndex;           // once qualifying begins, this becomes valid and ranks participants according to practice time if possible
+  float mQualificationTime[ 4 ];        // best qualification time in up to 4 qual sessions
+  float mFinalRacePlace[ 4 ];           // final race place in up to 4 race sessions
+  float mFinalRaceTime[ 4 ];            // final race time in up to 4 race sessions
+
+  // input/output
+  bool mServerScored;                   // whether vehicle is allowed to participate in current session
+  long mGridPosition;                   // 1-based grid position for current race session (or upcoming race session if it is currently warmup), or -1 if currently disconnected
+// long mPitIndex;
+// long mGarageIndex;
+
+  // future expansion
+  unsigned char mExpansion[ 128 ];
+};
+
+struct MultiSessionRulesV01
+{
+  // input only
+  long mSession;                        // current session (0=testday 1-4=practice 5-8=qual 9=warmup 10-13=race)
+  long mSpecialSlotID;                  // slot ID of someone who just joined, or -2 requesting to update qual order, or -1 (default/general)
+  char mTrackType[ 32 ];                // track type from GDB
+  long mNumParticipants;                // number of participants (vehicles)
+
+  // input/output
+  MultiSessionParticipantV01 *mParticipant;       // array of partipants (vehicles)
+  long mNumQualSessions;                // number of qualifying sessions configured
+  long mNumRaceSessions;                // number of race sessions configured
+  long mMaxLaps;                        // maximum laps allowed in current session (LONG_MAX = unlimited) (note: cannot currently edit in *race* sessions)
+  long mMaxSeconds;                     // maximum time allowed in current session (LONG_MAX = unlimited) (note: cannot currently edit in *race* sessions)
+  char mName[ 32 ];                     // untranslated name override for session (please use mixed case here, it should get uppercased if necessary)
+
+  // future expansion
+  unsigned char mExpansion[ 256 ];
+};
+
+
+enum TrackRulesCommandV01               //
+{
+  TRCMD_ADD_FROM_TRACK = 0,             // crossed s/f line for first time after full-course yellow was called
+  TRCMD_ADD_FROM_PIT,                   // exited pit during full-course yellow
+  TRCMD_ADD_FROM_UNDQ,                  // during a full-course yellow, the admin reversed a disqualification
+  TRCMD_REMOVE_TO_PIT,                  // entered pit during full-course yellow
+  TRCMD_REMOVE_TO_DNF,                  // vehicle DNF'd during full-course yellow
+  TRCMD_REMOVE_TO_DQ,                   // vehicle DQ'd during full-course yellow
+  TRCMD_REMOVE_TO_UNLOADED,             // vehicle unloaded (possibly kicked out or banned) during full-course yellow
+  TRCMD_MOVE_TO_BACK,                   // misbehavior during full-course yellow, resulting in the penalty of being moved to the back of their current line
+  TRCMD_LONGEST_LINE,                   // misbehavior during full-course yellow, resulting in the penalty of being moved to the back of the longest line
+  //------------------
+  TRCMD_MAXIMUM                         // should be last
+};
+
+struct TrackRulesActionV01
+{
+  // input only
+  TrackRulesCommandV01 mCommand;        // recommended action
+  long mID;                             // slot ID if applicable
+  double mET;                           // elapsed time that event occurred, if applicable
+};
+
+enum TrackRulesColumnV01
+{
+  TRCOL_LEFT_LANE = 0,                  // left (inside)
+  TRCOL_MIDLEFT_LANE,                   // mid-left
+  TRCOL_MIDDLE_LANE,                    // middle
+  TRCOL_MIDRIGHT_LANE,                  // mid-right
+  TRCOL_RIGHT_LANE,                     // right (outside)
+  //------------------
+  TRCOL_MAX_LANES,                      // should be after the valid static lane choices
+  //------------------
+  TRCOL_INVALID = TRCOL_MAX_LANES,      // currently invalid (hasn't crossed line or in pits/garage)
+  TRCOL_FREECHOICE,                     // free choice (dynamically chosen by driver)
+  TRCOL_PENDING,                        // depends on another participant's free choice (dynamically set after another driver chooses)
+  //------------------
+  TRCOL_MAXIMUM                         // should be last
+};
+
+struct TrackRulesParticipantV01
+{
+  // input only
+  long mID;                             // slot ID
+  short mFrozenOrder;                   // 0-based place when caution came out (not valid for formation laps)
+  short mPlace;                         // 1-based place (typically used for the initialization of the formation lap track order)
+  float mYellowSeverity;                // a rating of how much this vehicle is contributing to a yellow flag (the sum of all vehicles is compared to TrackRulesV01::mSafetyCarThreshold)
+  double mCurrentRelativeDistance;      // equal to ( ( ScoringInfoV01::mLapDist * this->mRelativeLaps ) + VehicleScoringInfoV01::mLapDist )
+
+  // input/output
+  long mRelativeLaps;                   // current formation/caution laps relative to safety car (should generally be zero except when safety car crosses s/f line); this can be decremented to implement 'wave around' or 'beneficiary rule' (a.k.a. 'lucky dog' or 'free pass')
+  TrackRulesColumnV01 mColumnAssignment;// which column (line/lane) that participant is supposed to be in
+  long mPositionAssignment;             // 0-based position within column (line/lane) that participant is supposed to be located at (-1 is invalid)
+  bool mAllowedToPit;                   // whether the rules allow this particular vehicle to enter pits right now
+  bool mUnused[ 3 ];                    //
+  double mGoalRelativeDistance;         // calculated based on where the leader is, and adjusted by the desired column spacing and the column/position assignments
+  char mMessage[ 96 ];                  // a message for this participant to explain what is going on (untranslated; it will get run through translator on client machines)
+
+  // future expansion
+  unsigned char mExpansion[ 192 ];
+};
+
+enum TrackRulesStageV01                 //
+{
+  TRSTAGE_FORMATION_INIT = 0,           // initialization of the formation lap
+  TRSTAGE_FORMATION_UPDATE,             // update of the formation lap
+  TRSTAGE_NORMAL,                       // normal (non-yellow) update
+  TRSTAGE_CAUTION_INIT,                 // initialization of a full-course yellow
+  TRSTAGE_CAUTION_UPDATE,               // update of a full-course yellow
+  //------------------
+  TRSTAGE_MAXIMUM                       // should be last
+};
+
+struct TrackRulesV01
+{
+  // input only
+  double mCurrentET;                    // current time
+  TrackRulesStageV01 mStage;            // current stage
+  TrackRulesColumnV01 mPoleColumn;      // column assignment where pole position seems to be located
+  long mNumActions;                     // number of recent actions
+  TrackRulesActionV01 *mAction;         // array of recent actions
+  long mNumParticipants;                // number of participants (vehicles)
+
+  bool mYellowFlagDetected;             // whether yellow flag was requested or sum of participant mYellowSeverity's exceeds mSafetyCarThreshold
+  bool mYellowFlagLapsWasOverridden;    // whether mYellowFlagLaps (below) is an admin request
+
+  bool mSafetyCarExists;                // whether safety car even exists
+  bool mSafetyCarActive;                // whether safety car is active
+  long mSafetyCarLaps;                  // number of laps
+  float mSafetyCarThreshold;            // the threshold at which a safety car is called out (compared to the sum of TrackRulesParticipantV01::mYellowSeverity for each vehicle)
+  double mSafetyCarLapDist;             // safety car lap distance
+  float mSafetyCarLapDistAtStart;       // where the safety car starts from
+
+  float mPitLaneStartDist;              // where the waypoint branch to the pits breaks off (this may not be perfectly accurate)
+  float mTeleportLapDist;               // the front of the teleport locations (a useful first guess as to where to throw the green flag)
+
+  // future input expansion
+  unsigned char mInputExpansion[ 256 ];
+
+  // input/output
+  signed char mYellowFlagState;         // see ScoringInfoV01 for values
+  short mYellowFlagLaps;                // suggested number of laps to run under yellow (may be passed in with admin command)
+
+  long mSafetyCarInstruction;           // 0=no change, 1=go active, 2=head for pits
+  float mSafetyCarSpeed;                // maximum speed at which to drive
+  float mSafetyCarMinimumSpacing;       // minimum spacing behind safety car (-1 to indicate no limit)
+  float mSafetyCarMaximumSpacing;       // maximum spacing behind safety car (-1 to indicate no limit)
+
+  float mMinimumColumnSpacing;          // minimum desired spacing between vehicles in a column (-1 to indicate indeterminate/unenforced)
+  float mMaximumColumnSpacing;          // maximum desired spacing between vehicles in a column (-1 to indicate indeterminate/unenforced)
+
+  float mMinimumSpeed;                  // minimum speed that anybody should be driving (-1 to indicate no limit)
+  float mMaximumSpeed;                  // maximum speed that anybody should be driving (-1 to indicate no limit)
+
+  char mMessage[ 96 ];                  // a message for everybody to explain what is going on (which will get run through translator on client machines)
+  TrackRulesParticipantV01 *mParticipant;         // array of partipants (vehicles)
+
+  // future input/output expansion
+  unsigned char mInputOutputExpansion[ 256 ];
+};
+
+
+struct PitMenuV01
+{
+  long mCategoryIndex;                  // index of the current category
+  char mCategoryName[ 32 ];             // name of the current category (untranslated)
+
+  long mChoiceIndex;                    // index of the current choice (within the current category)
+  char mChoiceString[ 32 ];             // name of the current choice (may have some translated words)
+  long mNumChoices;                     // total number of choices (0 <= mChoiceIndex < mNumChoices)
+
+  unsigned char mExpansion[ 256 ];      // for future use
+};
+
+
 //旼컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴커
 //?Plugin classes used to access internals                                ?
 //읕컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴켸
@@ -565,7 +824,7 @@ class InternalsPlugin : public PluginObject
 
   // SCORING OUTPUT
   virtual bool WantsScoringUpdates() { return( false ); }      // whether we want scoring updates
-  virtual void UpdateScoring( const ScoringInfoV01 &info ) {}  // update plugin with scoring info (approximately once per second)
+  virtual void UpdateScoring( const ScoringInfoV01 &info ) {}  // update plugin with scoring info (approximately five times per second)
 
   // GAME OUTPUT
   virtual long WantsTelemetryUpdates() { return( 0 ); }        // whether we want telemetry updates (0=no 1=player-only 2=all vehicles)
@@ -618,7 +877,7 @@ class InternalsPluginV03 : public InternalsPluginV02  // V03 contains everything
 
  public:
 
-  virtual bool WantsToViewVehicle( CameraControlInfoV01 &camControl ) { return( false ); } // set ID and camera type and return true
+  virtual unsigned char WantsToViewVehicle( CameraControlInfoV01 &camControl ) { return( 0 ); } // return values: 0=do nothing, 1=set ID and camera type, 2=replay controls, 3=both
 
   // EXTENDED GAME OUTPUT
   virtual void UpdateGraphics( const GraphicsInfoV02 &info )          {} // update plugin with extended graphics info
@@ -655,11 +914,55 @@ class InternalsPluginV05 : public InternalsPluginV04  // V05 contains everything
   virtual void RenderScreenBeforeOverlays( const ScreenInfoV01 &info ){} // before rFactor overlays
   virtual void RenderScreenAfterOverlays( const ScreenInfoV01 &info ) {} // after rFactor overlays
 
-  virtual void PreReset( const ScreenInfoV01 &info )                  {} // after detecting device lost but before resetting (note: placeholder not currently called)
+  virtual void PreReset( const ScreenInfoV01 &info )                  {} // after detecting device lost but before resetting
   virtual void PostReset( const ScreenInfoV01 &info )                 {} // after resetting
 
   // CUSTOM CONTROLS
   virtual bool InitCustomControl( CustomControlInfoV01 &info )        { return( false ); } // called repeatedly at startup until false is returned
+};
+
+
+class InternalsPluginV06 : public InternalsPluginV05  // V06 contains everything from V05 plus the following:
+{
+  // REMINDER: exported function GetPluginVersion() should return 6 if you are deriving from this InternalsPluginV06!
+
+ public:
+
+  // CONDITIONS CONTROL
+  virtual bool WantsWeatherAccess()                                   { return( false ); } // change to true in order to read or write weather with AccessWeather() call:
+  virtual bool AccessWeather( double trackNodeSize, WeatherControlInfoV01 &info ) { return( false ); } // current weather is passed in; return true if you want to change it
+
+  // ADDITIONAL GAMEFLOW NOTIFICATIONS
+  virtual void ThreadStarted( long type )                             {} // called just after a primary thread is started (type is 0=multimedia or 1=simulation)
+  virtual void ThreadStopping( long type )                            {} // called just before a primary thread is stopped (type is 0=multimedia or 1=simulation)
+};
+
+
+class InternalsPluginV07 : public InternalsPluginV06  // V07 contains everything from V06 plus the following:
+{
+  // REMINDER: exported function GetPluginVersion() should return 7 if you are deriving from this InternalsPluginV07!
+
+ public:
+
+  // CUSTOM PLUGIN VARIABLES
+  // This relatively simple feature allows plugins to store settings in a shared location without doing their own
+  // file I/O. Direct UI support may also be added in the future so that end users can control plugin settings within
+  // rFactor. But for now, users can access the data in UserData\Player\CustomPluginOptions.JSON.
+  // Plugins should only access these variables through this interface, though:
+  virtual bool GetCustomVariable( long i, CustomVariableV01 &var )   { return( false ); } // At startup, this will be called with increasing index (starting at zero) until false is returned. Feel free to add/remove/rearrange the variables when updating your plugin; the index does not have to be consistent from run to run.
+  virtual void AccessCustomVariable( CustomVariableV01 &var )        {}                   // This will be called at startup, shutdown, and any time that the variable is changed (within the UI).
+  virtual void GetCustomVariableSetting( CustomVariableV01 &var, long i, CustomSettingV01 &setting ) {} // This gets the name of each possible setting for a given variable.
+
+  // SCORING CONTROL (only available in single-player or on multiplayer server)
+  virtual bool WantsMultiSessionRulesAccess()                         { return( false ); } // change to true in order to read or write multi-session rules
+  virtual bool AccessMultiSessionRules( MultiSessionRulesV01 &info )  { return( false ); } // current internal rules passed in; return true if you want to change them
+
+  virtual bool WantsTrackRulesAccess()                                { return( false ); } // change to true in order to read or write track order (during formation or caution laps)
+  virtual bool AccessTrackRules( TrackRulesV01 &info )                { return( false ); } // current track order passed in; return true if you want to change it (note: this will be called immediately after UpdateScoring() when appropriate)
+
+  // PIT MENU INFO (currently, the only way to edit the pit menu is to use this in conjunction with CheckHWControl())
+  virtual bool WantsPitMenuAccess()                                   { return( false ); } // change to true in order to view pit menu info
+  virtual bool AccessPitMenu( PitMenuV01 &info )                      { return( false ); } // currently, the return code should always be false (because we may allow more direct editing in the future)
 };
 
 

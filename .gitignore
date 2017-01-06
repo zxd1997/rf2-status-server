@@ -4,3 +4,9 @@
 /Win32/Debug
 /Win32/Release
 /Win32/rf2ServerStateHttpQuery.sdf
+Win32/rf2ServerStateHttpQuery.VC.VC.opendb
+Win32/rf2ServerStateHttpQuery.VC.db
+Win32/rf2ServerStateHttpQuery.vcxproj.user
+Win32/x64/
+Win32/.vs/
+
