@@ -270,7 +270,7 @@ void RF2StatusHttpServerPlugin::Startup(long version)
 		freopen("CONOUT$", "w+t", stdout);
 	}
 
-	GetPrivateProfileString("config", "http_port", ":34297", address, 100, ".\\rf2-status-server-cfg.ini");
+	GetPrivateProfileString("config", "http_address", ":34297", address, 100, ".\\rf2-status-server-cfg.ini");
 
 	debugLog("Plugin Running.....Port:%d", address);
 	CreateThread(NULL, NULL, startHttpServer, NULL, 0, NULL);
