@@ -9,7 +9,8 @@
 #include <direct.h>
 #include <time.h>
 #include <errno.h>
-#include <windows.h> 
+#include <windows.h>
+#include <comdef.h>
 #include "cJSON.h"
 #include "mongoose.h"
 
@@ -65,7 +66,7 @@ void logToFile(const char* filePath, const char* fmt, ...)
 	delete[] timeBuf;
 }
 
-void getScoringInfo(struct mg_connection *c, struct http_message *hm)
+void getScoringInfo(struct mg_connection *nc, struct http_message *hm)
 {
 	cJSON *root = cJSON_CreateObject();
 
@@ -146,9 +147,8 @@ void getScoringInfo(struct mg_connection *c, struct http_message *hm)
 	}
 
 	char *out = cJSON_Print(root);
-	mg_printf(c, DEFAULT_HEADER_FMT,
+	mg_printf(nc, DEFAULT_HEADER_FMT,
 		(int)strlen(out), out);
-
 	cJSON_Delete(root);
 	free(out);
 
@@ -226,10 +226,11 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
 			mg_printf(nc, DEFAULT_HEADER_FMT,
 				(int)strlen(out), out);
 		}
+		nc->flags |= MG_F_SEND_AND_CLOSE;
 	}
 }
 
-char address[100] = { '\0' };
+WCHAR address[100] = { '\0' };
 DWORD WINAPI __stdcall startHttpServer(LPVOID lpParameter)
 {
 	debugLog("http server start")
@@ -237,7 +238,7 @@ DWORD WINAPI __stdcall startHttpServer(LPVOID lpParameter)
 	struct mg_connection *nc;
 
 	mg_mgr_init(&mgr, NULL);
-	nc = mg_bind(&mgr, address, ev_handler);
+	nc = mg_bind(&mgr, _bstr_t(address), ev_handler);
 	if (nc == NULL) {
 		printf("Failed to create listener\n");
 		return 1;
@@ -264,15 +265,15 @@ void RF2StatusHttpServerPlugin::UpdateScoring(const ScoringInfoV01 &info)
 
 void RF2StatusHttpServerPlugin::Startup(long version)
 {
-	isDebug = GetPrivateProfileInt("config", "is_debug", 1, ".\\rf2-status-server-cfg.ini");
+	isDebug = GetPrivateProfileInt(L"config", L"is_debug", 1, L".\\rf2-status-server-cfg.ini");
 	if (isDebug) {
 		AllocConsole();
 		freopen("CONOUT$", "w+t", stdout);
 	}
 
-	GetPrivateProfileString("config", "http_address", ":34297", address, 100, ".\\rf2-status-server-cfg.ini");
+	GetPrivateProfileString(L"config", L"http_address", L":34297", address, 100, L".\\rf2-status-server-cfg.ini");
 
-	debugLog("Plugin Running....listening:%s", address);
+	debugLog("Plugin Running....listening:%s", (const char*)_bstr_t(address));
 	CreateThread(NULL, NULL, startHttpServer, NULL, 0, NULL);
 
 }
