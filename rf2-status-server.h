@@ -3,9 +3,9 @@
 #ifndef _RF2_STATUS_SERVER_H
 #define _RF2_STATUS_SERVER_H
 
+#define WIN32_LEAN_AND_MEAN
 
 #include "InternalsPlugin.hpp"
-
 
 // This is used for the app to use the plugin for its intended purpose
 class RF2StatusHttpServerPlugin : public InternalsPluginV03  // REMINDER: exported function GetPluginVersion() should return 1 if you are deriving from this InternalsPluginV01, 2 for InternalsPluginV02, etc.

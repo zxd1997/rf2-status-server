@@ -1,5 +1,5 @@
 .vs
 x64
 *.VC.db
-
+Debug
 rf2-status-server.VC.VC.opendb
