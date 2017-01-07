@@ -264,13 +264,13 @@ void RF2StatusHttpServerPlugin::UpdateScoring(const ScoringInfoV01 &info)
 
 void RF2StatusHttpServerPlugin::Startup(long version)
 {
-	isDebug = GetPrivateProfileInt("config", "is_debug", 0, ".\\rf2_dedi_state_http_query.ini");
+	isDebug = GetPrivateProfileInt("config", "is_debug", 1, ".\\rf2-status-server-cfg.ini");
 	if (isDebug) {
 		AllocConsole();
 		freopen("CONOUT$", "w+t", stdout);
 	}
 
-	GetPrivateProfileString("config", "http_port", ":34297", address, 100, ".\\rf2_dedi_state_http_query.ini");
+	GetPrivateProfileString("config", "http_port", ":34297", address, 100, ".\\rf2-status-server-cfg.ini");
 
 	debugLog("Plugin Running.....Port:%d", address);
 	CreateThread(NULL, NULL, startHttpServer, NULL, 0, NULL);
