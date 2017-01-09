@@ -32,6 +32,7 @@ extern "C" __declspec(dllexport)
 void __cdecl DestroyPluginObject(PluginObject *obj) { delete((RF2StatusHttpServerPlugin *)obj); }
 
 ScoringInfoV01 *currentScoringInfo = NULL;
+HANDLE mutex = CreateMutex(NULL, FALSE, NULL);
 GraphicsInfoV02 *currentGraphicsInfo = NULL;
 bool isDebug = false;
 
@@ -70,6 +71,7 @@ void getScoringInfo(struct mg_connection *nc, struct http_message *hm)
 {
 	cJSON *root = cJSON_CreateObject();
 
+	WaitForSingleObject(mutex, INFINITE);
 	if (currentScoringInfo != NULL)
 	{
 		cJSON_AddItemToObject(root, "mGameMode", cJSON_CreateNumber(currentScoringInfo->mGameMode));
@@ -140,11 +142,12 @@ void getScoringInfo(struct mg_connection *nc, struct http_message *hm)
 
 			cJSON_AddItemToArray(mVehiclesArray, v);
 		}
-
+		
 	}
 	else {
 		cJSON_AddItemToObject(root, "error", cJSON_CreateString("session no started"));
 	}
+	ReleaseMutex(mutex);
 
 	char *out = cJSON_Print(root);
 	mg_printf(nc, DEFAULT_HEADER_FMT,
@@ -181,7 +184,7 @@ struct camera_control {
 
 camera_control *cameraControl = NULL;
 
-void setViewToVehicle(struct mg_connection *nc, struct http_message *hm)
+void setCameraControl(struct mg_connection *nc, struct http_message *hm)
 {
 	char mID[10];
 	char mCameraType[10];
@@ -200,9 +203,11 @@ void setViewToVehicle(struct mg_connection *nc, struct http_message *hm)
 		return;
 	}
 
+	WaitForSingleObject(mutex, INFINITE);
 	cameraControl = (camera_control*)malloc(sizeof(camera_control));
 	cameraControl->mID = atol(mID);
 	cameraControl->mCameraType = atol(mCameraType);
+	ReleaseMutex(mutex);
 
 	const char *out = "{\"succ\":1}";
 	mg_printf(nc, DEFAULT_HEADER_FMT,
@@ -219,7 +224,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *p) {
 			getGraphicsInfo(nc, hm); /* Handle RESTful call */
 		}
 		else if (mg_vcmp(&hm->uri, "/cameraControl") == 0) {
-			setViewToVehicle(nc, hm); /* Handle RESTful call */
+			setCameraControl(nc, hm); /* Handle RESTful call */
 		}
 		else {
 			const char *out = "{\"error\":\"api not found\"}";
@@ -256,13 +261,6 @@ DWORD WINAPI __stdcall startHttpServer(LPVOID lpParameter)
 		return 0;
 }
 
-void RF2StatusHttpServerPlugin::UpdateScoring(const ScoringInfoV01 &info)
-{
-	if (currentScoringInfo == NULL)
-		currentScoringInfo = new ScoringInfoV01();
-	memcpy(currentScoringInfo, (void *)&info, sizeof(info));
-}
-
 void RF2StatusHttpServerPlugin::Startup(long version)
 {
 	isDebug = GetPrivateProfileInt(L"config", L"is_debug", 1, L".\\rf2-status-server-cfg.ini");
@@ -278,23 +276,37 @@ void RF2StatusHttpServerPlugin::Startup(long version)
 
 }
 
+void RF2StatusHttpServerPlugin::UpdateScoring(const ScoringInfoV01 &info)
+{
+	WaitForSingleObject(mutex, INFINITE);
+	if (currentScoringInfo == NULL)
+		currentScoringInfo = new ScoringInfoV01();
+	memcpy(currentScoringInfo, (void *)&info, sizeof(info));
+	ReleaseMutex(mutex);
+}
+
 void RF2StatusHttpServerPlugin::UpdateGraphics(const GraphicsInfoV02 &info)
 {
+	WaitForSingleObject(mutex, INFINITE);
 	if (currentGraphicsInfo == NULL)
 		currentGraphicsInfo = new GraphicsInfoV02();
 	memcpy(currentGraphicsInfo, (void *)&info, sizeof(info));
+	ReleaseMutex(mutex);
 }
 
 unsigned char RF2StatusHttpServerPlugin::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 {
+	WaitForSingleObject(mutex, INFINITE);
 	if (cameraControl != NULL)
 	{
 		camControl.mID = cameraControl->mID;
 		camControl.mCameraType = cameraControl->mCameraType;
 		free(cameraControl);
 		cameraControl = NULL;
+		ReleaseMutex(mutex);
 		return (3);
 	}
+	ReleaseMutex(mutex);
 	return (0);// return values: 0=do nothing, 1=set ID and camera type, 2=replay controls, 3=both
 }
 
