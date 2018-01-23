@@ -1,4 +1,17 @@
-version: 1.0.{build}
+version: 1.0.0-{build}
+skip_non_tags: true
+configuration: Release
+platform: x64
 build:
   project: rf2-status-server.sln
   verbosity: minimal
+artifacts:
+- path: x64\Release\rf2-status-server.dll
+  name: rf2-status-server.dll
+deploy:
+- provider: GitHub
+  auth_token:
+    secure: 9c3VSQwd7nKbJ8v2/b0fe3iUGqWhhd8n3o0o6/h6xdKxQ3RPV0XhvlhbL491teqv
+  artifact: rf2-status-server.dll
+  prerelease: false
+  force_update: true
