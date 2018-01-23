@@ -131,7 +131,7 @@ void getScoringInfo(struct mg_connection *nc, struct http_message *hm)
 			cJSON_AddItemToObject(v, "mIsPlayer", cJSON_CreateNumber(vinfo.mIsPlayer));
 			cJSON_AddItemToObject(v, "mControl", cJSON_CreateNumber(vinfo.mControl));
 			cJSON_AddItemToObject(v, "mInPits", cJSON_CreateNumber(vinfo.mInPits));
-			cJSON_AddItemToObject(v, "mPitState", cJSON_CreateString(vinfo.mPitState));
+			cJSON_AddItemToObject(v, "mPitState", cJSON_CreateNumber(vinfo.mPitState));
 			cJSON_AddItemToObject(v, "mPitLapDist", cJSON_CreateNumber(vinfo.mPitLapDist));
 			cJSON_AddItemToObject(v, "mPlace", cJSON_CreateNumber(vinfo.mPlace));
 			cJSON_AddItemToObject(v, "mVehicleClass", cJSON_CreateString(vinfo.mVehicleClass));
