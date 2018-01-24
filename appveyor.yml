@@ -1,7 +1,4 @@
 version: 1.0.{build}
-branches:
-  only:
-  - master
 skip_non_tags: true
 configuration:
 - Release
@@ -12,12 +9,11 @@ build:
   parallel: true
   verbosity: minimal
 artifacts:
-- path: x64\Release\rf2-status-server-Release.dll
-- path: x64\Debug\rf2-status-server-Debug.dll
+- path: x64\$(configuration)\rf2-status-server-$(configuration).dll
 deploy:
 - provider: GitHub
   auth_token:
     secure: 9c3VSQwd7nKbJ8v2/b0fe3iUGqWhhd8n3o0o6/h6xdKxQ3RPV0XhvlhbL491teqv
-  artifact: rf2-status-server-Debug.dll,rf2-status-server-Release.dll
+  artifact: x64\Release\rf2-status-server-Release.dll,x64\Debug\rf2-status-server-Debug.dll
   prerelease: false
   force_update: true
