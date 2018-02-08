@@ -1,7 +1,7 @@
-rf2_server_status_query
+rf2游戏服务器状态HTTP查询插件
 =======================
 
-rf2游戏服务器状态HTTP查询插件
+[![Build status](https://ci.appveyor.com/api/projects/status/qcn7hx2a4e7ml0qv?svg=true)](https://ci.appveyor.com/project/pangliang/rf2-status-server)
 
 1. 获取ScoringInfo
 > http://ip:port/getScoringInfo
