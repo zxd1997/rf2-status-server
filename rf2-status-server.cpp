@@ -140,7 +140,9 @@ void getScoringInfo(struct mg_connection *nc, struct http_message *hm)
 			cJSON_AddItemToObject(v, "mTimeBehindLeader", cJSON_CreateNumber(vinfo.mTimeBehindLeader));
 			cJSON_AddItemToObject(v, "mLapsBehindLeader", cJSON_CreateNumber(vinfo.mLapsBehindLeader));
 			cJSON_AddItemToObject(v, "mLapStartET", cJSON_CreateNumber(vinfo.mLapStartET));
-
+			cJSON_AddItemToObject(v, "mPOS_X", cJSON_CreateNumber(vinfo.mPos.x));
+			cJSON_AddItemToObject(v, "mPOS_Y", cJSON_CreateNumber(vinfo.mPos.y));
+			cJSON_AddItemToObject(v, "mPOS_Z", cJSON_CreateNumber(vinfo.mPos.z));
 			cJSON_AddItemToArray(mVehiclesArray, v);
 		}
 		
